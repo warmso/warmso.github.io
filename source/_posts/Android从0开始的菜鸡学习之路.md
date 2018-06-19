@@ -1035,12 +1035,157 @@ listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
 然后如果要让点击之后发生点什么，就在这个onItemClick方法里写就好。
 ## RecyclerView
+
 终于过了那个ListView大户，然后又来了一个传说中更强大的控件——RecycleView。
 
 ListView其实有着很多不够强大的地方——一是需要用一些技巧去优化它的性能，二是它只能实现竖向的滚动，不能实现横向的滑动。
 
 所以，Android就提供了一个更强大的控件，这个可以看做一个增强版的ListView，可以轻松实现ListView的效果，还优化了ListView里面的各种不足之处。目前就连Android官方都更加推荐RecycleView。
 
+### RecyclerView的简单用法
 因为这个也是官方SDK里没有默认提供的控件，所以需要在app/build.gradle里面写明依赖库。
 
 然后就是在布局文件里面写这个控件了。
+```
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <android.support.v7.widget.RecyclerView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/recyclerview">
+    </android.support.v7.widget.RecyclerView>
+
+</LinearLayout>
+```
+也是很简单的写法。
+
+因为想要用这个RecylerView实现ListView，所以依然需要一个适配器类。然后之前的item和model类是通用的，直接拿过来用就好。
+
+新建一个FruitAdapter类：
+```
+public class FruitAdapter extends RecyclerView.Adapter<FruitAdapter.ViewHolder> {
+    private List<Fruit> mFruitList;
+
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
+        View view = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.item_layout,viewGroup,false);
+        ViewHolder holder = new ViewHolder(view);
+        return holder;
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder viewHolder, int i) {
+        Fruit fruit = mFruitList.get(i);
+        viewHolder.fruitImage.setImageResource(fruit.getImageId());
+        viewHolder.fruitName.setText(fruit.getName());
+    }
+
+    @Override
+    public int getItemCount() {
+        return mFruitList.size();
+    }
+
+    public FruitAdapter(List<Fruit> fruitList){
+        mFruitList = fruitList;
+    }
+
+
+    static class ViewHolder extends RecyclerView.ViewHolder{
+        ImageView fruitImage;
+        TextView fruitName;
+
+        public ViewHolder(View view){
+            super(view);
+            fruitImage = (ImageView)view.findViewById(R.id.fruit_image);
+            fruitName = (TextView)view.findViewById(R.id.fruit_textview);
+        }
+    }
+}
+```
+这段代码虽然比较长，但是其实理解起来不难：
+
+* 首先是这个适配器类本身是继承自RecyclerView.Adapter
+
+* 这个适配器的实例拥有一个List的实例变量，由构造函数传入参数来确定。
+
+*  这个适配的内部还有一个内部类ViewHolder，ViewHolder继承自RecyclerView.ViewHolder，它的作用和前面的ListView的ViewHolder的作用类似，也是为了提高性能的复用机制。
+
+* 适配器的类需要重写三个方法：
+
+1.onCreateViewHolder（），是用来创建ViewHolder的实例。
+
+2.onBindViewHolder（），用于将RecyclerView子项进行赋值，每个item出现在屏幕上的时候就会执行这个方法，相当于CellForRowAtIndex的iOS代理方法。 
+
+3.getItemCount（）相当于iOS里面的numberOfRow，返回行数。
+
+* 然后在Activity 中写一个线性布局的管理器，用于将item线性排列，这样就能实现listView 的样式。
+
+细心的我还发现，在ListView中，可如果可滑动超过了屏幕范围，就会有一个滑动条指示当前的位置，如果是RecyclerView实现的ListView，就没有这个滑动条了。
+
+### RecyclerView实现横向滚动和瀑布流
+#### 横向滚动的实现
+前面实现了类似ListView的纵向滚动，这次来在前面的基础上实现横向滚动。
+
+由于数据内容并没有改变，所以这个UI的变化只需要更改布局相关的代码就可以实现了：
+```
+	android:orientation="vertical"
+
+```
+首先是在item的布局中，把每个item的布局改为合适的排列方式。（可选，这个看情况，并不影响功能的实现）。
+
+```      
+	layoutManager.setOrientation(LinearLayoutManager.HORIZONTAL);
+
+```
+然后就是在Activity的onCreate（）里让这个布局管理器的布局方式写为水平线性布局。
+再次运行，就已经看到现在是水平滚动的RecyclerView了。
+
+由此可见，RecyclerView的布局方式是由Activity自身去管理的，可以自由配置LayoutManager的属性。
+
+除了上面用到的线性布局之外，RecyclerView还提供了GridLayoutManger（网格布局）、StaggeredGridLayoutManager（瀑布流布局）。
+
+#### 瀑布流的实现
+这一次就用StaggeredGridLayoutManager去实现瀑布流的布局：
+```
+StaggeredGridLayoutManager layoutManager = new StaggeredGridLayoutManager(3,StaggeredGridLayoutManager.VERTICAL);
+
+```
+要改动的其实就只有布局管理器一处，前面说过，数据不变的时候就是布局与布局管理器的改动了。
+
+这个StaggeredGridLayoutManager的构造方法里传入的两个参数分别表示：列数、布局的方向。
+
+### RecyclerView的点击事件
+这个RecyclerView的点击事件并没有提供具体的监听方法。所有的点击操作需要用户为每个item手动注册点击事件。
+
+看似RecyclerView不及ListView设计的好，但是实际上RecyclerView有自己的考虑：如果用户点击到的是item里面的某一个说具体的子控件呢？虽然ListView也还是有办法可以处理，但是就不是那么的人性化了。
+
+主要就是在adapter类里面进行设置：
+
+* 在ViewHolder里面添加View，用来响应item的项点击事件（如果需要的话）。
+* 在onCreateViewHolder（）方法里面在每次创建ViewHolder（也就是每次新建item的时候），对item中的控件注册点击监听器：
+```
+	public ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
+        View view = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.item_layout,viewGroup,false);
+
+        final ViewHolder holder = new ViewHolder(view);
+        holder.fruitImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                int position = holder.getAdapterPosition();
+                Fruit fruit = mFruitList.get(position);
+                Toast.makeText(view.getContext(),"clicked __ "+fruit.getName(),Toast.LENGTH_SHORT).show();
+            }
+        });
+        return holder;
+    }
+```
+这样就实现了具体的控件的点击事件的监听。前面对于item的view的点击注册会在没有注册过的控件的点击事件进行捕获并响应。
+
+## 总结
+基本的UI控件就到此为止了，安卓和iOS的设计还是有很多的相似之处，就是细节和思路的不同之处还需要多加练习以便熟练掌握，难点主要集中在ListView和RecyclerView上面，这个ListView其实比iOS的UITableView的功能差了很多，而RecyclerView和UIScrollView有一些相似，只不过iOS中的UITableView是继承自UISCrollView，但是安卓中的ListView并不是继承自RecyclerView的，后者反而是非标准的支持库的内容。
+
+# 碎片
+## 碎片是什么
