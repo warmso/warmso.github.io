@@ -1145,7 +1145,7 @@ public class FruitAdapter extends RecyclerView.Adapter<FruitAdapter.ViewHolder> 
 
 由此可见，RecyclerView的布局方式是由Activity自身去管理的，可以自由配置LayoutManager的属性。
 
-除了上面用到的线性布局之外，RecyclerView还提供了GridLayoutManger（网格布局）、StaggeredGridLayoutManager（瀑布流布局）。
+除了上面用到的线性布局之外，RecyclerView还提供了GridLayoutManager（网格布局）、StaggeredGridLayoutManager（瀑布流布局）。
 
 #### 瀑布流的实现
 这一次就用StaggeredGridLayoutManager去实现瀑布流的布局：
@@ -1189,3 +1189,351 @@ StaggeredGridLayoutManager layoutManager = new StaggeredGridLayoutManager(3,Stag
 
 # 碎片
 ## 碎片是什么
+
+经常能见到平板上对于手机的UI的不合理拉伸效果，这个碎片可以用来重新设计HD版本的APP，可以充分利用平板的大屏幕空间。
+
+碎片（Fragment）是一种可以嵌入到活动中的UI片段。它和活动很像，都能包含布局，也都有自己的生命周期。可以在一个活动中引入多个碎片，然后在碎片里实现不同的布局和业务逻辑。
+
+## 碎片的简单使用
+* 新建fragment的布局文集散，和别的布局没有什么不同。
+* 然后就是新建一个继承自Fragment的java类，这个就类似于activity的控制器。这里需要注意可作为父类的Fragment有两个，一个是系统内置的android.app.Fragment，一个是support-v4库中的Fragment类。这里用后者的原因是前者会导致4.2版本之前的系统无法支持这个控件而程序崩溃。
+```
+public class LeftFragment extends Fragment {
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.left_fragment,container, false);
+        return view;
+    }
+}
+```
+类似菜单和alert的方式，都是用一个铺开器去加载布局然后展开。
+* 在根Activity的布局文件里写对前面的fragment的布局文件的引用：
+```
+    <fragment
+        android:id = "@+id/left_fragment"
+        android:name="com.example.ifan.fragmenttest.LeftFragment"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="match_parent">
+    </fragment>
+```
+可以看到这个比一般的控件多了一个name的字段声明，这个是因为需要指定当前需要引用哪一个布局文件，也是布局文件内嵌使用的必要操作。（包名也要写全。）
+
+## 动态添加碎片
+### 动态添加碎片的五个步骤
+动态添加碎片分为五个步骤：
+
+* 先创建待添加的fragment实例：
+
+```
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:textSize="20sp"
+        android:text="this is another right fragment"
+        />
+</LinearLayout>
+```
+上面是新建的一个布局，然后新建一个继承自Fragment的java类加载这个布局作为这个新的Fragment类。
+```
+public class AnotherRightFragment extends Fragment {
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.another_right_fragment,container,false);
+        return view;
+    }
+}
+```
+
+*  获取FragmentManager。在Activity里面可以直接调用方法去获取：
+```
+    private void replaceFragment(Fragment fragment){
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        transaction.replace(R.id.right_layout,fragment);
+        transaction.commit();
+    }
+```
+* 开启一个事务（transaction）。对FragmentManager的实例调用beginTransaction的方法。
+* 向容器内添加或者替换碎片，一般用的是replace（）方法，传入容器的id和待添加的Fragment实例。
+**需要注意的是**：在activity的布局文件中，其实还做了一个操作是把上一个例子的另一个Fragment的布局控件改为了一个layout，这个layout控件就相当于一个容器，用来容纳新加入或者替换的Fragment。
+* 提交这个事务（transaction），对transaction调用commit（）方法。
+
+### 让Fragment参与到返回栈中
+
+前面的Activity有一个返回栈，在点击back的按钮的时候就会弹出栈顶，Fragment默认是不参与到返回栈的。
+
+如果想让Fragment也参与到返回栈的操作逻辑里的，对FragmentTransaction调用addToBackStack（）方法就可以了。
+```
+transaction.addToBackStack(null);
+
+```
+如果每一次Fragment出现的时候都添加到返回栈的话，就是类似于activity的standard模式，会一直加到栈里。
+### Fragment和Activity之间的通信
+FragmentManager提供了类似于findViewById（）的方法：
+```
+RightFragment rightFragment = (RightFragment)getSupportFragmentManager().findFragmentById(R.id.right_layout);
+
+```
+然后这个Fragment的实例就可以调用这个Fragment里的方法了。
+
+反之：也可以在Fragment里面获取Activity的实例，来执行Activity的方法。
+```
+MainActivity mainActivity = (MainActivity)getActivity();
+```
+再者，还可以不同的Fragment之间通信，可以先获取到Activity的实例，再通过Activity去获取Activity相关联的Fragment。
+
+## 碎片的生命周期
+碎片和活动很类似，所以这个生命周期也是很相似的，有一些细节不太相同：
+### 四个状态
+#### 运行状态
+碎片可见、并且相关的活动正处于运行态
+#### 暂停状态
+活动进入暂停的状态的时候，碎片也会进入暂停状态。
+#### 停止状态
+活动进入停止状态的时候、或者调用FragmentTransaction的remove（）或者replace（）方法的时候，碎片会被从活动中移除掉。
+
+但是如果碎片是通过addToBackStack（）方法加到返回栈中的，那碎片也会进入停止状态。这时碎片是完全不可见的。
+#### 销毁状态
+碎片是依附着活动存在的，当活动被销毁的时候，相关联的碎片就会进入到销毁状态。
+
+或者在没有addToBackStack的情况下直接调用FragmentTransaction的remove（）、replace（）方法移除掉碎片，都会导致碎片进入销毁状态。
+
+### 五个回调方法
+
+#### onAttach（）
+这个方法时为了让碎片和活动建立关联的。会在Activity的onCreate（）方法之前调用。
+#### onCreateView（）
+为碎片加载布局文件的时候调用的。在Activity的onCreate（）方法之后调用。
+#### onActivityCreated（）
+确保碎片依存的Activity一定已经创建完毕之后调用的。判断Activity是否已经成功创建。
+#### onDestroyView（）
+当碎片依存的视图被进入停止状态之后调用，在onStop（）之后调用。
+
+如果是从返回栈中回到上一个碎片，下一个要出现的碎片进入onCreateView（）的回调
+#### onDetach（）
+当碎片和Activity接触关联的时候调用，这时候的Activity进入销毁状态。在Activity的onDestroy（）方法之后调用。在onDetach（）方法之后，碎片就被销毁了
+
+## 一些使用技巧
+### 使用限定符
+在运行时判断程序是使用双页模式还是单页。
+
+限定符是在res的资源文件里不同的标识文件夹下写不同的布局文件、资源文件。然后app会根据不同的设备自动加载不同的布局和资源。
+
+限定符一般分为三类：
+
+#### 大小
+从小到大依次为：small、normal、large、xlarge
+
+#### 分辨率
+* 120dpi以下： ldpi
+* 120dpi~160dpi：mdpi
+* 160dpi~240dpi：hdpi
+* 240dpi~320dpi：xhdpi
+* 320dpi~480dpi：xxhdpi
+
+#### 方向
+* land：横屏
+* port：竖屏
+
+### 使用最小宽度限定符
+前面提到了限定符的概念，但是比如large缺少一些具体的信息，到底多大屏幕的设备会被认定为large呢？这就需要更灵活的限定了。
+使用最小宽度限定符就是指定一个最小的宽度值（以dp为单位），然后比这个最小宽度小的就会加载一种布局，大于这个值的就会加载另外一种布局。
+
+具体的做法是在res文件夹下新建一个layout-sw600dp的文件夹，然后在该文件夹下写一套布局文件，这样这个文件夹中的600就是一个最小宽度的限定，大于600dp宽度的设备会自动加载这个文件夹中的布局，如果没有大于600，就会加载原来的layout文件夹中的布局文件。
+
+# 广播机制
+## 简介
+Android中的每个app都可以对自己感兴趣的广播进行注册，这样它就可以收到它关心的广播内容。这些广播有的是来自于系统，有的是来自其他app的。
+
+广播分为两种：**标准广播、有序广播**
+### 标准广播
+是一种完全异步执行的广播，在广播发出之后，所有注册的接收器会在同一时间接收到这条广播，效率较高、无法截断。
+### 有序广播
+是同步执行的广播，在广播发出之后，同一时间只会有一个接受者去接受这个广播，然后剩下的接受者依次轮流接收到广播。
+
+优先级高的广播接收者就先收到，并且有机会截断正要继续传递的广播，这样后面的接受者就接收不到了。
+
+## 接收系统广播
+Android系统内置了很多系统级别的广播，在app中可以监听这些广播来得到系统的状态。比如手机开机完成之后、电池电量发生变化、时间、时区发生变化等等情况都会发出广播。
+
+app在注册接收器的时候有两种方式：在代码中注册，或者在在AndroidManifest中注册。
+
+前者也称为动态注册，后者也称为静态注册。
+
+### 动态注册
+动态注册需要一个接收器类，这个新类继承自BroadcaseReceiver，并重写onReceive（）方法，这样如果有广播到来，onReceive（）方法就会被调用。具体的处理逻辑写在这里就会被执行。
+
+```
+public class MainActivity extends AppCompatActivity {
+    private IntentFilter   intentFilter;
+    private NetworkChangeReceiver networkChangeReceiver;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
+        networkChangeReceiver = new NetworkChangeReceiver();
+        registerReceiver(networkChangeReceiver,intentFilter);
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(networkChangeReceiver);
+    }
+
+    class NetworkChangeReceiver extends BroadcastReceiver{
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Toast.makeText(context,"I had received a Broadcast",Toast.LENGTH_SHORT).show();
+        }
+    }
+}
+```
+在Activity类里面自定义了一个内部类NetworkChangeReceiver，继承自BroadcastReceiver，重写了父类的onReceive（）方法，这样一来就有了一个接收器类。
+
+然后Activity加了一个该类的实例，然后加了一个意图过滤器，去捕获系统的某个事件广播。
+
+最后调用registerReceiver的方法注册一个接受者，传入两个参数：接收器、过滤器。
+
+**在Activity被销毁的时候需要手动移除通知接受者。**
+
+运行程序，可以看到在注册完成的时候会调用一遍onReceive方法，之后就是在网络状态发生改变的时候会调用。
+
+**除此之外，我们还可以获取当前网络的可用状态**
+```
+ConnectivityManager connectivityManager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+if(networkInfo != null&&networkInfo.isConnected()){
+	Toast.makeText(context,"network is available",Toast.LENGTH_SHORT).show();
+}
+else {
+	Toast.makeText(context,"network is disable",Toast.LENGTH_SHORT).show();
+}
+```
+先通过getSystemService（）方法得到ConnectivityManager的实例，这个是一个专门管理网络连接的系统服务类，然后对这个实例调用getActiveNetworkInfo（）的大搜系统的网络状态。判断这个状态，显示不同的toast就可以了。
+
+**注意：Android系统为了保护用户安全和隐私，规定了如果程序需要进行一些敏感信息的操作，就必须在配置文件中声明权限，否则程序就崩了。所以就需要在AndroidManifest文件里加入权限声明：**
+emmm，新版的AndroidStudio已经自动加了，很好用呀，但是还是需要知道有这个权限的存在，这个机制倒是和iOS开发里面的info.plist文件很相似。
+
+### 静态注册
+前面的动态注册方法可以自由控制广播接收器的注册和取消很灵活，但是也有缺点：要开启广播接收器就必须要让app先运行起来。这样就没有办法实现让程序在没有启动的情况下就能接受到广播。
+
+这就需要静态注册的方式了：
+
+AndroidStudio提供了快捷方式去做静态注册：在java文件夹的包名文件夹下右键-New-Other-Broadcast Receiver，在弹出的窗口里选Exported和Enable选项然后Finsh就可以完成创建。
+
+然后会有一个新的java类：
+```
+public class BootCompleteReceiver extends BroadcastReceiver {
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        // TODO: This method is called when the BroadcastReceiver is receiving
+        // an Intent broadcast.
+        Toast.makeText(context,"boot complete",Toast.LENGTH_SHORT).show();
+    }
+}
+```
+这个java类就是一个静态方式的广播接收器。所以覆写onReceive（）方法就可以实现自己想要的逻辑。
+
+在此之后，还需要在AndroidManifest文件里面去声明权限，前面看到过关于网络的权限AndroidStudio已经自动写了，但是这次并没有写获取开机的通知的代码，就需要我们手动写一个这样的语句：
+```
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+```
+不过AndroidStudio还是为我们自动写了一些东西的：
+```
+<receiver
+	android:name=".BootCompleteReceiver"
+	android:enabled="true"
+	android:exported="true">
+	<intent-filter>
+		<action android:name="android.intent.action.BOOT_COMPLETED"/>
+	</intent-filter>
+</receiver>
+```
+自动添加了一个receiver的字段，声明了name等信息，不过中间的intent-filter字段是需要自己写的，这个是为了说明让接受者捕获什么样的广播。所以这里写了一个action，声明了要监听的是BOOT_COMPLETED这个特定的消息。
+
+**需要注意的是：接收器的java类里面不要添加过于复杂的逻辑或者一些耗时操作，因为接收器里是不允许开启线程的，当onReceive（）的方法里运行了很长时间都没有结束，程序就会报错的。**
+
+## 发送自定义广播
+前面也说过广播有标准和有序两种，接下来就通过发送广播去感受一下两种广播的不同
+
+### 发送标准广播
+发送标准广播很简单：
+```
+Intent intent = new Intent("com.example.broadcasttest.MY_BROADCAST");
+sendBroadcast(intent);
+```
+新建一个意图，然后调用sengBroadcast（）方法把这个意图发送出去就好了。
+
+而且因为是使用intent发送的广播，所以还是可以携带数据等信息给接受者。
+
+### 发送有序广播
+如果要发送有序广播其实只需要改动一行代码就可以实现了：
+```
+sendOrderedBroadcast(intent,null);
+
+```
+这个方法的方法名里多了order，表示是有序的。
+
+另外，对于接受者，就需要声明一下自己的接受优先级：
+```
+android:priority ="100"
+
+```
+表示自己的优先级设置为最高，保证可以在AnotherBroadcastReceiver之前就收到广播。
+
+再者，如过接收器的java类的onReceive（）方法的实现中可以调用
+abortBroadcast()方法来阻断该条有序广播的继续传播。
+
+## 使用本地广播
+
+前面也说过，广播机制是系统全局的，也就是说，我们app发送的广播其他的app也可以收到，其他app发的广播我们也可以收到。这样就可能带来一些安全性的问题：万一别的app获取了我们的app广播数据，或者他们一直发送大量垃圾广播。
+
+所以Android引入了一套本地广播机制，这个机制发出的广播只能够在app内部传递，接收器也不会接受除了自己app之外的广播了。
+
+还是从发送和接收的两个方面来看一下不同点：
+### 发送本地广播
+* 首先需要一个LocalBroadcastManager的实例属性
+* 和前面不一样的是，这里需要的这个管理器是需要用get的方法去获取实例的。
+
+```
+localBroadcastManager = LocalBroadcastManager.getInstance(this);      
+localBroadcastManager.sendBroadcast(intent);
+```
+* 然后就是对这个管理器调用sendBroadcast（）方法去发送意图。
+可以看到其实基本上和标准广播的发送没有什么不同，只不过多了LocalBroadcastManager类的使用。
+
+### 接收本地广播
+这个其实和前面的标准广播的套路也很类似：
+* Activity要有一个接收器类的实例
+* 写好intent的监听条件
+* 通过对localBroadcastManager调用registerReceiver（）方法去注册本地广播接受者。
+* 在Activity的onDestroy（）方法里对localBroadcastManager调用unregisterReceiver（）注销接受者。
+
+### 总结
+本地的广播是没有办法注册为静态方式的，因为它的存在周期也就是在app的生存周期之内，所以也没有必要用静态的方式。
+
+本地广播对比一般广播的优势：
+
+* 可以明确地知道这类广播不会作用在app之外，比较安全。
+* 其他的程序无法发送广播进来，不用担心恶意广播的安全隐患。
+* 因为只作用在app内部，所以效率也会更高。
+
+
+
+
