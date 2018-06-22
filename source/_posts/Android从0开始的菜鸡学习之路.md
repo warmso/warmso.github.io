@@ -1,4 +1,4 @@
-title: Android从0开始的菜鸡学习之路
+title: Android-从0开始的学习之路
 author: howard
 tags:
   - 0基础
@@ -7,6 +7,7 @@ tags:
 categories:
   - Android
   - 客户端
+  - 读书笔记
 date: 2018-06-04 16:05:00
 ---
 开头先说几句：
@@ -1535,5 +1536,238 @@ localBroadcastManager.sendBroadcast(intent);
 * 因为只作用在app内部，所以效率也会更高。
 
 
+# 持久化存储
+
+## 简介
+持久化存储其实就是把内存中的数据存到外外存上。
+
+Android主要提供了三种方式去做持久化：文件、SharedPreference、数据库存储。其实还是可以把数据存在SD卡里但是后来的手机都没有SD卡的插槽了，而且也比较不安全。
+
+## 文件存储
+
+文件存储是一种最基本的数据存储方式，它不对内容进行处理，直接原封不动地存储，比较适合用来存储一些简单的文本数据或者二进制数据。如果需要实现复杂的文本存储，就需要自定义格式规范。
+
+### 存储到文件
+
+Context类有一个openFileOutput（）的方法，用于将数据存储到指定的文件中：
+```
+public void save(){
+	String data = "Data to be save";
+	FileOutputStream out = null;
+	BufferedWriter writer = null;
+	try{
+		out = openFileOutput("data",Context.MODE_PRIVATE);
+		writer = new BufferedWriter(new OutputStreamWriter(out));
+		writer.write(data);
+	}
+	catch (IOException e){
+		e.printStackTrace();
+	}
+	finally {
+		try{
+			if (writer != null){
+				writer.close();
+			}
+		}
+		catch (IOException e){
+  	  	e.printStackTrace();
+		}
+	}
+}
+```
+首先有一个待存储的data字符串。然后新一个文件输出流的对象FileOutputStream类的实例。和一个BufferedWriter的实例。
 
 
+openFileOutput（）方法的两个参数分别是文件名（不可包含路径）和文件操作模式（MODE_PRIVATE和MODE_APPEND），然后返回一个FileOutputStream对象，这个对象可以用java流的方式写入文件。
+
+借助这个流对象构建一个BufferedWriter对象，这个对象就可以把某个字符串写入到文件里面了。
+
+所以写入文件的流程其实就是三步：
+* 先打开一个到文件的输出流（文件输出流）
+* 然后用文件输出流创建一个“输出流写入器”
+* 再用输出流写入器创建一个“缓冲写入器”将数据写入数据流。
+
+**之所以不用写文件路径，是因为默认都会放到“data/data/package name/files”文件夹下** 
+
+### 从文件中读取数据
+从文件中读数据也是需要一个openFileInput（）方法。只接受一个参数——文件名，同样也是从data/data/package name/files文件夹下去找的。然后返回一个FileInputStream对象。
+
+然后还是通过java流的方式读入。
+
+```
+    public String load(){
+        FileInputStream fileInputStream = null;
+        BufferedReader bufferedReader = null;
+        StringBuilder content = new StringBuilder();
+        
+        try {
+            fileInputStream = openFileInput("data");
+            bufferedReader = new BufferedReader(new InputStreamReader(fileInputStream));
+            String line = "";
+            while ((line  = bufferedReader.readLine()) !=null){
+                content.append(line);
+            }
+        }
+        catch (IOException e){
+            e.printStackTrace();
+        }
+        finally {
+            if(bufferedReader != null){
+                try{
+                    bufferedReader.close();
+                }
+                catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+        return content.toString();
+    }
+```
+读入文件其实也是三步：
+* 创建文件输入流
+* 用文件输入流创建输入流读取器 
+* 用输入流读取器创建一个缓冲读取器
+
+然后当读入的字符不为空，就循环读取就可以了。可以用一个StringBuilder去拼接字符串。
+
+（PS：可以用TextUtils.isEmpty（）方法来判断字符串的空值情况，这个方法可以同时判断两种情况——当字符串对象为null或者是一个空串，都可以返回true。）
+
+## ShardPreferences存储
+
+这种存储是用键值的方式去存储数据(xml格式)，支持多种不同的数据类型，比文件的存储要方便很多。
+
+### 数据存入
+要使用SharedPreferences存储，就需要先获取到SharePreferences对象，Android提供了三种方法去获取：Context类中的get方法、Activity类中的get方法、PreferenceManger类中的getDefaultShared方法。
+* 获取SharedPreferences
+
+ ```
+getSharedPreferences("data",MODE_PRIVATE);
+//这个方法是Context类中的，接受两个参数，第一个是文件名，存放在data/data/package name/shared_prefs目录下，如果不存在就会新建一个文件，第二个参数是操作模式，这里用的是private模式，表示其他的app无权操作，其他模式已经废弃。
+ ```
+ ```
+getPreferences(MODE_PRIVATE);
+//这个方法时Activity中的，只不过只接收一个参数，它会自动将当前活动的类名作为SharedPreferences的文件名。
+ ```
+ ```
+PreferenceManager.getDefaultSharedPreferences(this);
+//这个是PreferenceManager类的方法，接收一个Context参数，并自动使用当前app的包名作为前缀作为文件名
+ ```
+ 
+上面的三个方法都是为了得到SharedPreferences的，得到之后就可以进行下一步了：
+ 
+* 对SharedPreferences对象调用edit（）方法来获取一个SharedPreferences.Editor的对象
+ ```
+SharedPreferences.Editor editor = getSharedPreferences("data",MODE_PRIVATE).edit();
+
+ ```
+ 
+* 向editor中添加数据：
+
+ ```
+editor.putInt("age",21);
+editor.putString("name","paopao");
+editor.putBoolean("single",false);
+ ```
+* 对editor调用apply（）方法将前面添加的数据提交，就完成了存储操作。
+ ```
+editor.apply();
+
+ ```
+ 
+### 数据取出
+取数据的步骤更为简单：
+* 先获取到SharedPreferences对象，和前面的方法一样。
+
+* 对SharedPreferences对象调用getXXX方法，get方法传入两个参数，第一个参数为键名，第二个参数为默认值——如果对应的键没有取到值，就返回默认值。
+
+### 总结
+其实这个SharedPreferences和iOS中的NSUserDefault非常相似，只不过后者用单例模式实现。但是Android中的用PreferenceManager的方法获取到的SharedPreferences其实也可以当做一个单例来使用，因为同一个app的包名是一样的。
+
+## SQLite数据库存储
+Android内置了SQLite数据库，这是一种轻量级的关系型数据库，运算速度快，占用资源少（一般几百KB内存就够了），支持标准的SQL语法，遵循ACID事务（即原子性、一致性、隔离性、持久性）。
+### 创建数据库
+Android为了能够更方便地使用数据库，专门提供了一个SQLiteOpenHelper的帮助类。它是一个抽象类。所以需要我们自己构建子类去实现具体的功能。
+
+```
+    class MyDatabaseHelper extends SQLiteOpenHelper{
+        private static final String CREATE_BOOK = "create table Book ("
+                +"id integer primary key autoincrement, "
+                +"author text, "
+                +"price real,"
+                +"pages integer,"
+                +"name text)";
+        private Context mContext;
+        public MyDatabaseHelper(Context context, String name, SQLiteDatabase.CursorFactory factory,int version){
+            super(context , name , factory , version);
+            mContext = context;
+        }
+
+        @Override
+        public void onCreate(SQLiteDatabase sqLiteDatabase) {
+            sqLiteDatabase.execSQL(CREATE_BOOK);
+            Toast.makeText(MainActivity.this,"create database succeded",Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
+        }
+    }
+```
+* 首先需要新建一个类，继承自SQLiteOpenHelper，类中需要有一个用于创建数据库的SQL语句。还要有一个context的实例变量来暂存构造方法中传入的context。
+
+* 重写该类的构造方法，将参数中的context传给成员变量。四个参数的意义分别是：上下文、数据库名、自定义光标（一般为null）、数据库版本号。
+
+* 重写onCreate（）方法，对SQLiteDatabase的实例调用execSQL（）方法去执行前面写好的SQL语句。
+
+* 重写onUpgrade（）方法，加入想要执行的逻辑代码。
+
+这个数据库帮助类就基本完成了，要使用这个类去创建数据库，就要在Activity的java类中去创建一个该帮助类的实例，
+* 创建该类的实例：
+ ```
+MyDatabaseHelper myDatabaseHelper = new MyDatabaseHelper(this,"BookStore.db",null,1);
+
+ ```
+* 对实例调用创建方法：
+ ```
+myDatabaseHelper.getWritableDatabase();
+//方法一：当数据库不可写入的时候，会报异常
+myDatabaseHelper.getReadableDatabase();
+//方法二：当数据库不可写入的时候，会以只读方式打开
+//两个方法都可以打开一个已存在数据库或者新建一个数据库并返回一个可读写数据库的对象。
+ ```
+ 
+### 升级数据库
+ 
+ 前面覆写了onUpgrade（）的方法，但是没有加入逻辑代码。如果需要在原来的onCreate（）中加入别的SQL语句的操作，就会发现，已经存在了数据库之后，原来的onCreate（）不能正确执行，因为数据库已经存在。
+ 
+ 在onUpgrade（）方法中，先把数据表删除了，然后再调用更新了代码的onCreate（）方法。
+ 
+ 而且，onUpgrade（）不是手动调用的，它的触发机制是在自定义帮助类的初始化的时候，在版本参数中传入一个大于上一个版本数的数字就好了。
+ 
+ 
+### 添加数据
+既然要操作数据库，当然可以用SQL语句去完成，但是为了照顾开发者的SQL水平，Android提供了不用SQl语句操作数据库的方法。
+
+前面用getWritableDatabase（）或getReadableDatabase（）返回的是一个SQliteDatabase对象，对这个对象调用方法就可以对数据库操作。
+
+```
+SQLiteDatabase db = myDatabaseHelper.getReadableDatabase();
+
+ContentValues values = new ContentValues();
+values.put("name","Android first code");
+values.put("author","paopao");
+values.put("pages",454);
+values.put("price",16.96);
+db.insert("Book",null,values);
+values.clear();
+```
+新建一个ContentValue来组装单条数据项，然后对SQLiteDatabase实例调用insert（）方法，接收三个参数：表名、未指定数据给某些可为空的列自动赋值为NULL、单条数据项。
+
+后面如果需要组装多次，可以重复使用ContentValues的实例，每次用clear方法清空数据就可以了。
+
+### 更新数据
+
+ 
+ 
+ 
