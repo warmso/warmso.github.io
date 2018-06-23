@@ -1768,6 +1768,210 @@ values.clear();
 
 ### 更新数据
 
- 
- 
- 
+SQLiteDatabase还提供了update（）方法用于更新数据。
+```
+values.put("price",10.99);
+db.update("Book",values,"name  = ?",new String[]{"Android first code"});
+```
+先构造需要修改的数据项，然后对SQLiteDatabase调用update（）方法去更新数据。
+
+update（）方法接收四个参数：表名、数据项、where语句部分（这里的？是一个占位符，可以指定第四个参数去替换这里的？）、用于替换占位符的字符串。
+
+### 删除数据
+```
+db.delete("Book","page > ?",new String[]{"500"});
+
+```
+删除数据就更简单，接收三个参数：表名、where语句、用于替换占位符的String对象。
+
+### 查询数据
+查询是这几种数据库操作里面最复杂的操作了。
+
+同样的，SQLiteDatabase提供了query（）方法用于查询数据，这个方法很复杂——需要传入七个参数。(拍照渣像素，见谅)
+![P9iCh6.jpg](https://s1.ax1x.com/2018/06/23/P9iCh6.jpg)
+
+然后这个函数会返回Cursor对象，包含着若干行数据。
+可以对cursor实例对象调用moveToFirst（）和moveToNext（）方法来切换行的跳转。
+
+对cursor对象调用getColumnIndex（）传入列名可以得到某一列在表中对应位置的索引，然后再对cursor调用getInt等方法从得到的索引中取出当前行的具体类型的数据。
+```
+Cursor cursor  = db.query("Book",null,null,null,null,null,null,);
+cursor.getString(cursor.getColumnIndex("name"));
+```
+(这个只是展示方法调用的，实际使用还需要加入一些判空等操作和行的操作)。
+
+
+### 直接使用SQL语句操作数据库
+Android充分考虑不同人的编程习惯，也支持开发者直接使用SQL操作数据库：
+
+查询数据库用SQLiteDatabase的rawQuery（）方法，其他的操作都是用调用execSQL（）方法，接受两个参数，一个由语句和占位符构成的公式，一个字符串数组去逐个替换占位符。
+```
+db.execSQL("insert into Book(name,author,pages,price)values(?,?,?,?)",new String[]{"a book","me","454","16.61"});
+db.rawQuery("select * from Book",null);
+```
+
+## 使用LitePal操作数据库
+这个是一个开源库，采用了对象关系映射ORM的模式，不用编写SQL语句就可以完成建表和各种增删改查等骚操作。
+
+鉴于这个也是第一次在Adroid开发中使用开源库，所以顺带熟悉一下怎么集成第三方框架
+
+### 集成第三方框架
+很多的开源框架会提交到jcenter上面，所以只需要在app/build.gradle里面声明引用该开源库就可以了，这一点和cocoapods很相似。当然了，也是可以下载别人的开源库的源代码然后导入包的，只不过这种方式方便很多。
+```JAVA
+implementation 'org.litepal.android:core:1.4.1'
+```
+* 在dependencies字段中添加上面的语句，然后同步gradle就可以集成该库了。
+
+* 接下来使用的时候，先在app/src/main目录下新建一个asset目录，然后在asset目录下新建一个litepal.xml文件，写入如下内容：
+```Xml
+<?xml version="1.0" encoding="utf-8" ?>
+<litepal>
+    <dbname value = "BookStore"></dbname>
+    <version value = "1"></version>
+    <list>
+    </list>
+</litepal>
+```
+其中的dbname是用于指定数据库名，version用于指定数据库的版本号，list用来指定映射模型，这个一会再写。
+
+* 最后在AndroidManifest.xml中配置：
+```java
+android:name="org.litepal.LitePalApplication"
+```
+为什么要这样配置呢？再后面一些会说的。
+
+到此为止就完成了，看起来其实好像要比cocoapods使用还是要麻烦一些的。
+
+## 创建和升级数据库
+前面提到过这个litepal是用了ORM，那和前面的数据库操作有什么不同呢？
+
+这个对象关系映射模式，使得开发者可以用面向对象的思维来操作数据库。
+
+试一下：
+* 先新建一个类Book，
+```JAVA
+public class Book{
+	private int id ;
+	private String author;
+	private double price;
+	private int pages;
+	private String name;
+}
+```
+然后按Alt+Insert键，可以自动生成getter和setter方法（这么好用？！），这样这个Book类就对应数据库中的一张Book表，而每一个成员变量就对应一列
+* 接下来还需要将Book类添加到映射表中——就是前面没写完的list部分：
+```XML
+<litepal>
+    <dbname value = "BookStore"></dbname>
+    <version value = "1"></version>
+    <list>
+        <mapping class="com.example.ifan.databasetest.MainActivity.Book"></mapping>
+    </list>
+</litepal>
+```
+这里一定要使用完整的类名。如果有多个类需要映射，就都添加到list里面就可以了。
+* 调用LitePal.getDatabase（）方法就可以创建数据库了。
+* 要升级数据库也很简单，不用像之前一样去drop掉表然后再建新表了，直接在相关的类中做列的修改，然后在litepal.xml中修改版本号就可以了。不用担心，原来的数据还是保留下来的，不用担心数据的丢失。
+
+## 添加数据
+之前要添加数据的时候，需要先新建一个ContentValues对象作为新的一行的数据项，然后向其中添加数据......
+
+现在，只需要新建一个模板类的实例，对成员变量赋值，然后对对象调用save（）方法就可以了。
+
+之前的模板类没有写所继承的父类，因为光进行表的管理操作本来就不需要继承别的类就可以实现。但是如果要进行CRUD操作，还是要继承DataSupport类。
+```JAVA
+Book book = new Book();
+book.setName("hi you");
+book.setPrice(12.655);
+book.save();
+```
+最后这个save（）方法就是DataSupport类提供的，除此之外，它还提供了丰富的CRDU方法。
+
+### 更新数据
+更新数据有几种方法：
+* 最简单的一种是**对已经存储的对象重新设值**
+（PS：首先要搞清楚的是什么才算是已经存在的数据？这里的判定是通过对模板类实例调用isSaved（）方法，如果存在，就返回true。返回true有两种情况：一种是已经调用过save（）添加过数据；一种是LitePal提供了API去查询数据库，查到了就表明已经存在。）
+所以可以对前面存储过的某条数据的部分成员变量赋值修改后的值。
+试过之后，发现这个必须是连续操作的，重启app之后会把这一条本来表示更新的的数据重复添加。这样一来，就有了很大的局限性。
+
+那么就要用到更灵活的方法了：
+* updateAll（）方法
+```java
+book.updateAll("name = ? and author = ?","hi me","me");
+```
+还是新建一个模板类，对成员变量赋值，然后用这个updataAll（）方法更新数据库，参数也比较简单，第一个参数是公式，后面若干个字符串是用于替代占位符的串。
+
+另外，LitePal还提供了设置为默认值的方法，而不是手动设置为默认值：setToDefault（），参数中接受若干个字符串作为要重置为默认值的列名。
+
+### 删除数据
+对于比较简单的delete（）方法没有太大的意义，这里主要看一下另一种删除的方法：
+
+DataSupport类提供了deleteAll（）方法来删除数据，和上面的updateAll（）用法类似，很灵活。
+
+### 查询数据
+前面的query（）方法里面要传入7个参数，颇为不便，LitePal做了很多优化：
+```java
+List<Book> books = DataSupport.select("name")
+                              .where("pages >30")
+                              .order("price")
+                              .limit(10)
+                              .offset(10)
+                              .find(Book.class);
+```
+
+
+* 首先，LitePal的查询结果返回了一个模板类构成的List，这样就自动完成了赋值，后面的操作都围绕着List中的元素进行就可以了。
+
+* 而且把众多的查询条件都以方法的方式封装，可以根据实际情况自由连缀使用。
+# 内容提供器——跨程序共享数据
+之前的持久化存储部分提到过，文件的存储都开始使用本app独占的操作模式，就是为了保证数据安全，
+
+但是有的时候需要和别的app共享一些数据——当然不是账号密码这种敏感数据！比如电话簿、短信等程序，需要开放一些数据以便二次开发，那就需要跨程序共享数据，这就需要用到内容提供器了（而且，这个Android实现跨程序共享数据的标准方式。）
+
+## 简介
+内容提供器（Content Provider）提供了一套完整的机制，允许一个程序访问另一个程序的数据，同时还能保证被访问数据的安全。
+
+emmm，书上说，要先了解一下运行时权限，好吧，歪一下。
+## 运行时权限
+Android中其实一直有权限机制，但是都比较鸡肋。后来到了6.0时代，引用了运行时权限，为了更好地保护用户的安全和隐私。
+
+### 权限详解
+前面在用广播的时候就写过关于权限的东西——在AndroidManifest.xml中写过uses-permission的字段，有了这个字段之后，对于低于6.0系统的设备上安装时候就会提醒用户一些权限获取的信息，用户可以选择安装与否。
+
+但是越来越多的app就是先都一股脑申请了权限，不管你用得到用不到，这样就容易被app滥用权限，但是对于一些常用、必用的app，又不得不同意。
+
+6.0加入的运行时权限，使得用户不用一次性授权所有权限，而是可以在运行过程中，对具体的某一次申请进行授权。
+
+Android中的权限分为两类：**普通权限、危险权限**。（其实还有一种特殊权限，但是使用的太少了就先不说了）
+
+* 普通权限：一些不会直接威胁到用户的安全和隐私的权限。这种权限系统会自动授权。
+* 危险权限：一些可能会触及到用户隐私或者会对设备安全性造成影响的权限，如联系人、地理位置等，这类权限需要用户手动授权。
+
+危险权限实际上很少，大部分是普通权限，这里有张表列出了9组24个危险权限，除此之外，都是普通权限：
+![P9MLIU.jpg](https://s1.ax1x.com/2018/06/23/P9MLIU.jpg)
+
+需要注意的是，虽然请求的是某一个具体的权限，但是最后一旦授权，那么这个权限所属的权限组都会获得权限。
+
+### 在运行时申请权限
+因为运行时动态授权的都是危险权限，所以这里只写获取危险权限的例子：
+
+* 第一步就是先判断用户是否已经授权：
+```java
+ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CALL_PHONE);
+```
+这个方法接受两个参数：上下文、具体的权限名。
+然后将返回值和PackageManager.PERMISSION_GRANTED作比较，如果相等，那就是已经授权了，反之则没有授权。
+* 如果已经被授予权限，就新建一个intent并设置所携带的数据，然后用StartActivity（）方法启动这个intent，就会跳转到目标的页面。
+* 如果没有被授权，ActivityCompat.requestPermissions（）方法来申请权限。接受三个参数，第一个参数是Activity的实例变量、第二个是String数组，用来放要申请的权限名、第三个参数是请求码，传入一个整型唯一值就可以了。
+* 前面的请求权限后面会唤起一个回调方法——onRequestPermissionResult，这个回调方法会携带garantResults参数，只要判断一下最后的授权结果就知道下一步是放弃操作还是用刚请求到的权限搞一搞事情。
+（PS：这个回调方法每次请求授权的时候都会唤起，所以在方法里需要用请求码去区分到底是哪种类型的请求。然后判断grantReaults数组是否包含元素——长度>0，然后判断grantResults的第0个元素是否和PackageMangeer.PERMISSION_GRANTED的值一致）
+
+## 访问其他app的数据
+呼...终于搞完了权限相关的基础内容，下面就是本章的正文：访问别的app中的数据。
+
+内容提供器一般有两种用法：
+* 一种是使用现有的内容提供器来读取和操作别的app中的数据。
+* 另一种是创建自己的内容提供器为我们的app提供接口供别的app来访问我们的数据。
+
+### ContentResolver的一般用法
+ContentResolver中的增删改查并不接受表名作为参数，而是使用一个Uri参数，这个参数被称为**内容URI**，这个内容URI为内容提供器的数据建立唯一标识符
