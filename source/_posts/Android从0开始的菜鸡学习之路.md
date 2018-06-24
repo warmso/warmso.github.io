@@ -1923,10 +1923,13 @@ List<Book> books = DataSupport.select("name")
 * 首先，LitePal的查询结果返回了一个模板类构成的List，这样就自动完成了赋值，后面的操作都围绕着List中的元素进行就可以了。
 
 * 而且把众多的查询条件都以方法的方式封装，可以根据实际情况自由连缀使用。
+
+
 # 内容提供器——跨程序共享数据
 之前的持久化存储部分提到过，文件的存储都开始使用本app独占的操作模式，就是为了保证数据安全，
 
 但是有的时候需要和别的app共享一些数据——当然不是账号密码这种敏感数据！比如电话簿、短信等程序，需要开放一些数据以便二次开发，那就需要跨程序共享数据，这就需要用到内容提供器了（而且，这个Android实现跨程序共享数据的标准方式。）
+
 
 ## 简介
 内容提供器（Content Provider）提供了一套完整的机制，允许一个程序访问另一个程序的数据，同时还能保证被访问数据的安全。
@@ -1973,5 +1976,141 @@ ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CALL_PH
 * 一种是使用现有的内容提供器来读取和操作别的app中的数据。
 * 另一种是创建自己的内容提供器为我们的app提供接口供别的app来访问我们的数据。
 
-### ContentResolver的一般用法
-ContentResolver中的增删改查并不接受表名作为参数，而是使用一个Uri参数，这个参数被称为**内容URI**，这个内容URI为内容提供器的数据建立唯一标识符
+### ContentResolver的基本用法
+每个app如果想要访问内容提供器，就必须要借助ContentResolver类，这个类的实例可以通过Context中的getContentResolver（）方法获取到。
+
+ContentResolver中提供了一系列的方法用于对数据进行CRUD操作，比如insert（）、updata（）、query（）等。
+
+ContentResolver中的增删改查并不接受表名作为参数，而是使用一个Uri参数，这个参数被称为**内容URI**，这个内容URI为内容提供器的数据建立唯一标识符。
+
+URI由两部分组成：authority和path。
+
+authority是用于对不同的app做区分的，一般是app的包名+.provider；
+
+path是对于同一app中provider的不同的表做区分的，一般作为authority的后缀。
+
+举个例子：com.example.app.provider/table1，这个URI中的“com.example.app.provider”是authority部分，后面的“/table1”部分是path。
+
+最后，为了辨认这个字符串是内容URI，还需要在首部加上协议声明，最终就变成了：
+
+content://com.example.app.provider/table1
+
+然后还需要把这个字符串解析成Uri对象才可以作为参数使用：
+```java
+Uri uri = Uri.parse("content://com.example.app.provider/table1");
+```
+现在就可以使用query方法查询表了：
+```java
+Cursor cursor = getContentResolver().query();
+```
+这个query（）方法接受五个参数：
+![P9DeN4.jpg](https://s1.ax1x.com/2018/06/24/P9DeN4.jpg)
+
+query（）方法返回的依然是一个Cursor对象，前面已经使用过这个了，不再赘述。需要注意的是，使用完cursor对象之后要记得对对象调用close（）方法。
+
+另外，对于其他的操作比如插入更新等等，也是构建一个ContentValues的对象作为行数据，然后调用insert（）、update（）方法去操作就可以了。
+
+## 创建自己的内容提供器
+需要自己新建一个类，继承自ContentProvider。ContentProvider类中有六个抽象方法，因此在实现子类的时候，需要全部实现这些方法：onCreate（）、query（）、insert（）、update（）、delete（）、getType（）。
+
+onCreate（）一般做的就是一些创建和升级数据库的操作，返回true或者false表示内容提供器初始化成功与否。（只有ContentResolver要访问数据的时候才会调用初始化方法）
+
+query（）、insert（）、update（）、delete（）都是用uri来确定要操作哪一张表，然后传入参数进行类似数据库的操作。
+
+不同的是getType（）方法，这个方法返回一个Uri对象对应的MIME类型。MIME有三部分构成：以vnd开头+android.cursor.dir/或者android.cursor.item（选哪一个取决于Uri的结尾是路径还是id）+vnd.*authority*.*path*
+
+**内容提供器一定要在AndroidManifest.xml中注册才能使用，不过使用Android Studio的快捷方式去新建的话，会自动完成。**
+
+# 多媒体开发
+P 282，暂时先不看，后面会补。
+
+# 网络相关的开发
+
+## WebView的使用
+WebView也是控件之一，所以也可以在布局文件里正常书写。不过还需要做一些设置才能正常加载网页：
+```java
+WebView webView= (WebView) findViewById(R.id.webview);    webView.getSettings().setJavaScriptEnabled(true);
+webView.setWebViewClient(new WebViewClient());
+webView.loadUrl("https://www.baidu.com");
+```
+getSetting()方法可以设置一些浏览器的属性。
+SetJavaScriptEnabled（）是让WebView支持JS脚本。
+
+调用WebView的setWebViewClien
+
+t（）方法并传入一个WebViewClient的实例变量是表示当一个网页要跳转到另一个网页的时候，还是在这个WebView中，而不是打开系统的浏览器。
+
+调用loadUrl方法并传入一个用作URL的字符串，就可以让这个WebView加载指定的网页。
+
+**因为访问网页是需要网络权限的，所以还需要AndroidManifest.xml中添加INTERNET权限**
+
+## 使用HTTP访问网络
+### 使用HttpURLConnection
+```java
+URL url = new URL("http://www.baidu.com");
+HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+connection.setRequestMethod("GET");
+connection.setConnectTimeout(8000);
+connection.setReadTimeout(8000);
+InputStream in= connection.getInputStream();
+connection.disconnect();
+```
+* 先通过一个字符串创建一个URL对象。
+* 然后对url调用openConnection（）方法开启一个http连接并赋值给一个HttpUrlConnection对象。
+* 对这个HttpUrlConnection对象设置各种属性。
+* 从HttpUrlConnection对象获取一个输入流。
+* 新建一个输入流读取器。
+* 从上一步的输入流读取器新建一个BufferedReader对象
+* 对BufferedReader实例循环调用readLine（）来读入字符串，需要的话用StringBuilder变量拼接起来，作为http请求的response体。
+* 完成请求之后调用disconnect（）关闭连接。
+
+上面的步骤如果直接写，就是同步请求，如果要写异步请求后面多线程的部分会说到。
+
+**用http请求去访问网络同样需要网络的权限，需要和前面一样去AndroidManifest.xml文件里声明权限。**
+
+### 使用OKHttp进行网络请求
+这个又是一个第三方框架，不仅在接口封装上做的简单易用，而且底层实现上也自成一派。
+
+* 第一步还是先配置第三方库：在gradle里面添加“com.squareup.okhttp3:okhttp:3.4.1”的依赖
+* 首先要创建一个OKHttpClient实例。
+* 创建一个Request对象，Request的Builder（）之后可以连缀很多个方法来丰富这个请求体。
+* 对OKHttpClient对象调用newCall（）方法传入前面=创建好的请求体，并调用execute（）方法来发送这个请求，execute（）的返回值用一个Response类的对象接收。
+* 可以对Response对象调用body（）方法获取响应体，然后调用string（）方法来返回一个字符串。
+
+以上就是一个GET请求的过程，说着感觉过程很多，但是代码很简洁：
+```java
+OkHttpClient okHttpClient = new OkHttpClient();
+Request request = new Request.Builder().url("http://www.google.com").build();
+Response response = okHttpClient.newCall(request).execute();
+String responseData = response.body().string();
+```
+
+如果需要写POST请求，就需要构建一个RequestBody对象来存放请求体的参数：
+```java
+RequestBody requestBody = new FormBody.Builder().add("username","admin")
+												.add("password","123456")
+												.build();
+```
+然后在requset的连缀方法里多加一个post（），传入请求体，之后就和和GET的操作一样了。
+
+### 解析XML
+P.321 暂时先不看。
+### 解析Json 
+* 新建一个JSONArry或者JSONObject（取决于具体的json数据的结构）
+* 对于JSONArray，可以遍历其中的数据，每个元素都是JSONObject
+* 对于JSONObject，直接调用getString（）方法取出字符串就可以了。
+
+### 用GSON解析JSON
+GSON是一个google提供的开源库，好处是可以直接映射赋值到某个类的成员变量。
+* 先配置第三方库，在gradle里添加‘com.google.code.gson:x.x’
+* 新建一个Gson对象
+* 对Gson对象调用fromJson（）方法，传入两个参数：jsondata原字符串、模板类.class。
+* 如果结构里面有数组结构，用TypeToken将目标类型传入fromJson（）方法中：
+```java
+List<Person> people = gson.fromJson(jsonData,new TypeToken<List<Person>>(){}.getType());
+```
+
+### 回调机制
+回调机制普遍存在在各种语言的设计中，总的来说就是A调用B的方法，B在耗时操作这个方法，然后方法执行完了以后B再调用A的某个方法，这样的机制就是回调。
+
+java中的实现是依靠interface
