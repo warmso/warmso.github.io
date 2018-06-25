@@ -2088,8 +2088,8 @@ String responseData = response.body().string();
 如果需要写POST请求，就需要构建一个RequestBody对象来存放请求体的参数：
 ```java
 RequestBody requestBody = new FormBody.Builder().add("username","admin")
-												.add("password","123456")
-												.build();
+				  .add("password","123456")
+				  .build();
 ```
 然后在requset的连缀方法里多加一个post（），传入请求体，之后就和和GET的操作一样了。
 
@@ -2113,4 +2113,134 @@ List<Person> people = gson.fromJson(jsonData,new TypeToken<List<Person>>(){}.get
 ### 回调机制
 回调机制普遍存在在各种语言的设计中，总的来说就是A调用B的方法，B在耗时操作这个方法，然后方法执行完了以后B再调用A的某个方法，这样的机制就是回调。
 
-java中的实现是依靠interface
+java中的实现是依靠interface的特性实现的。
+* 新建接口类CallBackListener：
+```java
+public interface CallBackListener {
+    public void OnFinished(String callBackData);
+    public void onError(IOException e);
+}
+```
+* 让A类实现接口类的接口：
+```java
+public class A extends AppCompatActivity implements CallBackListener
+```
+然后重写接口中的方法，作为收到回调之后的处理：
+```java
+@Override
+public void OnFinished(String callBackData) {
+	Log.d("A","callback succeed");
+}
+@Override
+public void onError(IOException e) {
+}
+```
+* 在B类中写耗时操作，并对传入的接口类实例调用接口定义中的方法“；
+```java
+public class B {
+    public void verySlow(CallBackListener callback,String question) {
+
+        for (int i = 0; i < 100000; i++);//模拟耗时操作
+
+        String string = "i am very slow , but i had finished it " + question;
+        callback.OnFinished(string);
+    }
+}
+```
+如果要使用回调，就在A类里持有一个B类的实例，然后新开一个线程，在A类中调用B类的方法。
+```java
+new Thread(new Runnable() {
+	@Override
+	public void run() {
+		justDoIt.verySlow(MainActivity.this,"1+1");
+		Log.d("MainActivity","call finished");
+	}
+}).start();
+```
+
+# 后台服务
+服务是Android中能够让程序后台运行的办法，这种方法很适合去做那种不需要用户交互的、长期运行的任务。
+
+服务不是一个独立运行的进程是，而是依赖于创建服务的那个进程。所以如果创建服务的进程被杀死之后，这一票依赖于这个进程的服务都会挂掉。
+
+服务不会自己开启线程，所有的代码默认在主线程里运行。所以就需要手动去创建子线程。
+
+## 多线程编程
+### 线程的基本用法
+定义一个新的线程只需要新建一个类继承自Thread，然后重写run（）方法，并在里面编写耗时操作的逻辑代码就好。
+
+新建完线程类之后，如果想让这个线程启动，对线程对象调用start（）方法就可以。
+
+但是这样写会导致较高的耦合性，更多的时候其实是通过实现Runnable（）接口的方式来自定义线程的：
+```java
+public class Mythread extends Thread implements Runnable {
+    @Override
+    public void run() {
+        Log.v("MyThread"," run myThread with interface Runnable");
+    }
+}
+```
+或者如果不想另外新建一个类去实现接口的方法，也可以直接使用匿名类（而且使用场景更多）：
+```java
+new Thread(new Runnable() {
+	@Override
+	public void run() {
+		//do something
+	}
+});
+```
+### 在子线程中更新UI
+** Android的UI线程是不安全的，如果想要更新UI元素，就必须在主线程中进行，否则会出现异常**
+
+但是有的时候，我们会开启一个用于处理耗时操作的子线程，然后在子线程处理完之后改变UI的内容。对于这种情况，Android提供了一套异步消息处理的机制。
+
+先看看怎么使用：
+```java
+public static final int UPDATE_TEXT = 1;
+private TextView textView;
+private Handler handler = new Handler(){
+	public void handleMessage(Message msg){
+		switch (msg.what){
+			case UPDATE_TEXT:
+				textView.setText("changed");
+				break;
+			default:
+				break;
+            }
+        }
+    };
+```
+先在Activity类中新增三个成员变量：一个是用来标识“更新某个控件”这个动作的标志变量、一个是对目标控件的引用、一个是Handler变量，在新建的时候就可以创建一个代码部分，里面实现了handleMessage（）方法，这个代码就是先判断传入的Message实例是哪一个操作，然后写UI的更新逻辑代码。
+```java
+new Thread(new Runnable() {
+	@Override
+	public void run() {
+        Message message = new Message();
+		message.what = UPDATE_TEXT;
+		handler.sendMessage(message);
+	}
+}).start();
+```
+这个部分就是异步开启一个线程，然后新建一个Message对象，指定Message对象的what属性为前面用来标识更新某个UI控件的标志变量，然后对Handler的成员变量实例调用sendMessage（）方法，传入刚才新建好的message对象，就可以了。
+
+### 异步消息机制的原理简析
+前面了解了Handler的用法，现在再来看一下异步消息处理的机制是怎么一回事，为什么这种机制能够处理UI线程。
+
+这种机制由四部分构成：Message、Handler、MessageQueue、Looper。
+#### Message
+Message是线程之间传递的**消息**，可以携带少量数据。上面在构建Message对象的时候，设置过一个what的属性，除此之外还可以使用arg1、arg2来携带整型数据、用obj属性携带一个Object对象。
+
+#### Handler
+用于发送和处理消息，发送消息一般是使用Handler的sendMessage（）方法，之后消息兜兜转转，最终会回到HandleMessage（）方法。所以上面在声明Handler对象的时候就自己实现了handleMessage（）方法，因为这个是最终要执行的方法。
+
+#### MessageQueue
+消息队列，用于存放所有通过Handler发送的消息，这些消息们会一直存在在这个队列中，等待着被一个接一个的处理掉。
+
+**每个线程只有一个MessageQueue对象**
+#### Looper
+Looper是每个线程中的MessageQueue的管家，调用Looper的loop（）方法，就会让Looper把MessageQueue中的message循环取出并传递到Handler的handleMessage（）方法中。
+
+**每个线程也只有一个Looper**
+
+### 使用AsyncTask
+Android还基于异步消息处理机制封装了AsyncTask以便从子线程切换到主线程，AsyncTask是一个抽象类，如果需要使用，就需要子类去继承它。
