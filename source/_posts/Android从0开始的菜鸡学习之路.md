@@ -2244,3 +2244,32 @@ Looper是每个线程中的MessageQueue的管家，调用Looper的loop（）方�
 
 ### 使用AsyncTask
 Android还基于异步消息处理机制封装了AsyncTask以便从子线程切换到主线程，AsyncTask是一个抽象类，如果需要使用，就需要子类去继承它。
+
+三个泛型参数：
+
+* Params：在执行AsysncTask时传入的参数，可以在后台任务中使用。
+* Progress：如果需要 在界面上显示当前进度，这个泛型参数就是进度的单位。
+* Result：指定返回值的类型
+
+```java
+class DownloadTask extends AsyncTask<Void,Integer,Boolean>{
+	@Override
+	protected void onPreExecute() {
+		super.onPreExecute();
+	}
+	@Override
+	protected Boolean doInBackground(Void... voids) {
+		return null;
+	}
+    @Override
+    protected void onProgressUpdate(Integer... values) {
+		super.onProgressUpdate(values);
+	}
+
+	@Override
+	protected void onPostExecute(Boolean aBoolean) {
+		super.onPostExecute(aBoolean);
+	}
+}
+```
+重写了四个方法，
