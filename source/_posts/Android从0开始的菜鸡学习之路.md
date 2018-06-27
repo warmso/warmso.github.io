@@ -2272,4 +2272,111 @@ class DownloadTask extends AsyncTask<Void,Integer,Boolean>{
 	}
 }
 ```
-重写了四个方法，
+重写了四个方法:
+
+- onPreExecute：在后台任务开始之前调用，做一些初始化操作，弹出显示进度条、对话框等。
+- doInBackground：这个方法中的代码都会在子线程中，可以用来处理耗时任务，完成之后就可以通过return预计来返回结果。因为在子线程中，所以这里不能更新UI，如果要更新UI元素，可以调用publishProgress（）方法来实现。
+- onProgressUpdate：该方法中携带的参数是在后台的publishProgress（）方法发送过来的，这个方法中可以对UI进行操作。
+- onPostExcute：这个方法也是出于主线程的，当后台任务执行完return回来的时候就会调用这个方法，这个方法可以提示后台任务的执行结果或者关闭进度条等等。
+
+## 服务的基本用法
+
+作为Android四大组件之一，服务也是很重要的一部分。
+
+### 定义一个服务
+
+可以使用Android Studio的快捷方法去新建一个服务类：
+
+```java
+public class MyService extends Service {
+    public MyService() {
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        // TODO: Return the communication channel to the service.
+        throw new UnsupportedOperationException("Not yet implemented");
+    }
+}
+```
+
+新建的服务类还需要重写一些方法去完成功能，这里重写了onCreate（）、onStartCommand（）、onDestroy（）方法，也很好理解，就不细说了。
+
+服务也需要在AndroidManifest.xml文件中注册，不过因为用的是IDE的快捷方法，它已经自己写好了：
+
+```xml
+<service
+	android:name=".MyService"
+	android:enabled="true"
+	android:exported="true">
+</service>
+```
+
+### 启动和停止服务
+
+前面已经创建好了一个服务，现在来启动一下这个服务：
+
+```java
+Intent startServiceIntent = new Intent(this,MyService.class);
+startService(startServiceIntent);
+```
+
+代码也很简单，就是新建一个Intent，参数中传入自定义service的类，然后调用startService（）方法传入这个intent就可以启动了。
+
+
+
+停止服务也很简单：
+
+```java
+Intent startServiceIntent = new Intent(this,MyService.class);
+stopService(startServiceIntent);
+```
+
+和上面一样，可以这样手动停止。
+
+另外，可以在MyService类中的任意位置调用stopSelf（）方法就可以让服务自己停下来。
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
