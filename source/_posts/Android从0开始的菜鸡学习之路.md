@@ -2351,32 +2351,124 @@ stopService(startServiceIntent);
 
 另外，可以在MyService类中的任意位置调用stopSelf（）方法就可以让服务自己停下来。
 
- 
+### 活动和服务的通信
+
+前面的启动和停止都是Activity调用方法去控制服务的开始和结束，但是中间的具体执行细节、进度等等信息Activity并没有得知。如果需要Activity和服务有更紧密的联系，就需要使用onBind（）方法了。
+
+```java
+class DownloadBinder extends Binder{
+        public void startDownload(){
+            Log.v("MyService","startDownload");
+        }
+        public int getProgress(){
+            Log.v("Myservice","getProgress");
+            return 10;
+        }
+    }
+```
+
+使用的具体方法时新建一个内部类，然后在service类的内部新建一个Binder子类的成员变量，在onBind（）方法中返回这个成员变量。
+
+这样就完成了service类的部分，如果需要实现活动和服务的通信还需要在Activity类中写一些的代码：
+
+```java
+    private MyService.DownloadBinder downloadBinder;
+    private ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            downloadBinder = (MyService.DownloadBinder) iBinder;
+            downloadBinder.startDownload();
+            downloadBinder.getProgress();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+
+        }
+    };
+```
+
+在Activity类中添加一个成员变量：一个service内部类Binder的实例。和一个ServiceConnection的匿名类，在匿名类里面重写了onServiceConnected（）方法和onServiceDissconnected（）方法。这两个方法会在 活动和服务绑定和解绑时候调用。
+
+这样，就可以通过在Activity中对Binder实例这个成员变量调用方法，实现在服务里执行某个方法。
+
+最后就是将服务和Activity绑定起来了：
+
+```java
+Intent bindIntent = new Intent(this,MyService.class);
+bindService(bindIntent,connection,BIND_AUTO_CREATE);
+```
+
+依照惯例，先新建一个intent对象，然后用bindService（）方法将intent、ServiceConnection的实例绑定起来，第三个参数是表示Activity和通知绑定起来之后会自动新建服务，这时候Service类中的onCreate（）方法会被回调执行，但是onStartCommand（）方法不会执行。
+
+要解绑也很简单，直接调用unbindService（）传入ServiceConnection的实例就可以解绑了。
+
+**任何服务在整个APP的范围内都是通用的，一个服务可以和任意活动绑定，绑定后获取到的Service的bind子类实例是相同的。
+
+### 服务的生命周期
+
+- 服务开始于create，回调onCreate（）方法
+- 然后在app的任何位置调用了startService（）方法，该服务就会启动起来，并并回调onStartCommand（）方法。
+- 启动之后服务会一直运行，直到stopService（）方法或者service类内部的stopSelf（）方法调用。
+- 当startService（）调用后，再调用stopService（）方法，就会回调onDestory（）方法，表示服务被销毁。或者在bindService（）之后再调用unbindService（）方法也会被销毁。如果同时startService（）和bindService（）都被调用过，那销毁服务就需要stopService（）和unbindService（）方法都调用。
+
+**每个服务只会存在一个实例，所以无论对同一个服务启动了多少次，实际上只有一个，调用一次stopService（）或者stopSelf（）就停止运行了。**
+
+### 服务的使用技巧
+
+#### 前台服务
+
+服务几乎都是在后台工作，它的系统优先度其实比较低，如果系统内存不足的时候，可能就会回收掉正在运行的服务。
+
+如果希望服务可以一直保持运行，就可以使用**前台服务**
+
+前台服务和后台服务的一个区别在于，前台服务会有一个正在运行的图标在系统的状态栏显示，很类似通知的效果。
+
+前台服务的使用并不仅仅是为了避免被回收，比如天气类的app，它就需要这样一种的效果——在后台更新天气数据的时候，还可以在状态栏一直显示当前的天气信息。
+
+- 在Service类中加入如下代码：
+
+```java
+intent = new Intent(this,MainActivity.class);
+NotificationChannel  channel = new NotificationChannel("5555","foreground",
+NotificationManager.IMPORTANCE_HIGH);
+PendingIntent pi = PendingIntent.getActivity(this,0,intent,0);
+Notification notification = new Notification.Builder(this,"5555")
+                .setContentTitle("this is content title")
+                .setContentText("this is content text")
+                .setWhen(System.currentTimeMillis())
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setLargeIcon(BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher))
+                .setContentIntent(pi)
+                .build();
+startForeground(1,notification);
+```
+
+书上的方法有的部分已经被废弃了，这个是新一些的方法：新键了一个intent，然后新建了一个Notification的Channel并，为后面的通知实例指定这个channel 的id，然后调用service的startForeground（）方法，传入这个notification的实例，就可以启动一个前台服务。
+
+#### 使用IntentService
+
+因为服务使用的还是在主进程的主线程，所以如果用服务去执行耗时操作，就会出现ANR（Application Not Responding，未响应）情况。
+
+所以如果需要使用后台服务去执行耗时操作，就需要在service的类中开启新的线程去执行耗时任务。这时候新的线程开了以后就没有办法去控制了，除非直接停止这个服务。
+
+所以就可以在耗时操作后调用stopSelf（）方法。
+
+实际上，Android提供了一个专门用于开启带线程的后台任务的类：IntentService
+
+新建一个类继承自InetntService，然后重写其onHandleintent方法，这个里面就可以写一些耗时操作，然后构造方法和onDestory（）方法就执行父类的方法就可以（看具体情况）。
+
+**这个类可以自动开辟新的线程去执行任务，而且最后的onDestory（）方法也可以自动执行。**
+
+# Material Design 风格的UI
+
+2014年，google推出了一套全新的UI设计语言，包括视觉设计、运动、互动效果等等。想让各个app的设计都采用这套设计语言（可惜的很多公司还是没有接受这个...）
+
+简而言之，它实际上也是包括了一套UI，这套控件体现了Material Design 的UI风格。
+
+## Toolbar
 
 
+和上面一样，可以这样手动停止。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+另外，可以在MyService类中的任意位置调用stopSelf（）方法就可以让服务自己停下来。
