@@ -2468,7 +2468,254 @@ startForeground(1,notification);
 
 ## Toolbar
 
+之前的所有默认的Activity都会有一个ActionBar的控件，就是最上面的一个条。官方已经不再推荐使用ActionBar了，转而推荐ToolBar。ToolBar继承了ActionBar的所有功能，而且灵活性很高，可以配合其他空间去完成Material Design的效果。
 
-和上面一样，可以这样手动停止。
+### ToolBar 的简单体验
 
-另外，可以在MyService类中的任意位置调用stopSelf（）方法就可以让服务自己停下来。
+Activity默认带的ActionBar是由AndroidManifest.xml中的android:theme属性中指定的AppTheme主题而来的。这个AppTheme在res/values/styles.xml文件中定义的，这个文件长这样：
+
+```xml
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+</resources>
+```
+
+可以看到，定义的AppTheme的parent主题是Theme.AppCompat.Light.DarkActionBar，所以之前的Activity带有ActionBar是因为指定了这个主题。
+
+这里如果想要使用ToolBar代替ActionBar，就需要设置这个AppTheme为NoActionBar。
+
+然后就需要在activity的布局代码中写一个toolbar的控件：
+
+```xml
+<android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        android:popupTheme= "@style/Theme.AppCompat.Light"
+        >
+</android.support.v7.widget.Toolbar>
+```
+
+可以看到和一般的控件有一些不太一样的地方，不过都大同小异。
+
+再然后就是在activity的代码中写：
+
+```java
+Toolbar toolbar = (Toolbar)findViewById(R.id.toolbar);
+setSupportActionBar(toolbar);
+```
+
+可能会有报错的提示，只需要把包含的库改为import android.support.v7.widget.Toolbar;就可以了，因为setSupportActionBar是个库提供的，而自动包含可能写成另一个ToolBar的库。
+
+目前为止，实现了一个ToolBar，但是看上去的实现效果和ActionBar并无二致，这是因为暂时还没有应用到ToolBar的一些效果，但是实际上就已经有可以实现Material Design的能力。
+
+如果想要实现更丰富的ToolBar就需要自定义ToolBar了：
+
+### 自定义ToolBar
+
+先新建一个toolbar.xml布局文件作为自定义ToolBar的布局：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/backup"
+        android:icon="@drawable/ic_launcher_background"
+        android:title="Backup"
+        app:showAsAction = "always"
+        >
+    </item>
+    <item
+        android:id="@+id/delete"
+        android:icon="@drawable/ic_launcher_background"
+        android:title="Delete"
+        app:showAsAction="ifRoom"
+        ></item>
+    <item
+        android:id="@+id/settings"
+        android:icon="@drawable/ic_launcher_background"
+        android:title="Settings"
+        app:showAsAction="never"
+        ></item>
+</menu>
+```
+
+和前面的控件的布局不同的地方在于：多了一个app:showAsAction来指定按钮的显示位置，因为这里也用到了app的字段，所以在开头需要用xmlns去指定这个命名空间。
+
+showAsAction主要有几种值可选：
+
+- always：表示永远显示在ToolBar中，如果屏幕空间不够就不显示了。
+- ifRoom：如果屏幕空间足够，就显示在ToolBar中，如果不够的话就显示在菜单中。
+- nerver：永远显示在菜单中。
+
+**ToolBar中的action按钮只显示图标，菜单中的action只显示文字**
+
+## 滑动菜单
+
+滑动菜单其实就是侧滑栏，iOS中并没有提供原生的侧滑栏，但是安卓提供了一个Drawerlayout控件，就可以借助这个控件来实现侧滑栏。
+
+### Drawerlayout
+
+这个DrawerLayout是一个布局，在布局中允许防止两个直接子控件：主屏幕中显示的内容、滑动菜单中显示的内容。
+
+```xml
+<android.support.v4.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id = "@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <android.support.v7.widget.Toolbar
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+            >
+        </android.support.v7.widget.Toolbar>
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:text="123456"
+        android:textSize="30sp"
+        android:background="#FFF"   />
+</android.support.v4.widget.DrawerLayout>
+```
+
+现在的activity的布局文件变成了这样，最外层是DrawerLayout，然后在里面写了一个ToolBar作为主屏幕的显示内容，在侧滑栏里写了一个TextView。
+
+**对于第二个控件的layout_gravity的属性是必须指定的，表示了侧滑栏的滑出位置。
+
+但是如果用户没有划出来就不知道是否有侧滑栏的存在。所以建一个做法是在ToolBar的最左边加一个导航按钮，这样点击导航按钮也可以打开侧滑栏。
+
+```java
+drawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
+ActionBar actionBar = getSupportActionBar();
+if (actionBar!=null){
+	actionBar.setDisplayHomeAsUpEnabled(true);
+	actionBar.setHomeAsUpIndicator(R.drawable.ic_launcher_background);
+}
+```
+
+首先，先获取到这个DrawerLayout的实例，再获取到可用的ActionBar，因为现在用的ToolBar去实现ActionBar，所以获取到的实际上就是ToolBar。然后让ActionBar实例把HomeAsUp按钮显示出来。
+
+现在就设置好了ToolBar上的显示，最后让点击到这个按钮时候显示出DrawerLayout就可以了：
+
+```java
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case android.R.id.home:
+                drawerLayout.openDrawer(GravityCompat.START);
+                break;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+```
+
+可以看到，对DrawerLayout实例调用openDrawer（）方法就可以打开侧滑栏了，传入的参数表示的依旧是打开侧滑栏的方向。
+
+### NavigationView
+
+NavigationView是DesignSupport库中提供的一个控件，可以更为简单的实现滑动菜单的页面。
+
+暂时先不看，等到具体需要使用的时候回回来补笔记。因为目前看到的国内的很多app也并没有使用这套设计语言，所以使用场景暂时还是很受限的，当然了，如果要去制作个人的app还是很不错的一种app的设计风格，可能会和原生系统UI统一而高效。
+
+## 悬浮按钮和可交互提示
+
+### FloatingActionButton
+
+默认使用colorAccent作为按钮的颜色。可以在布局文件中设置其阴影效果（借此来表示悬浮高度）。其他的也没有什么特性，和普通的按钮使用效果是一样的。暂时不做样例代码的学习。
+
+### Snackbar
+
+这个是在屏幕下方显示一个条状视图和一个按钮，用于用户交互（比如相机删除照片后会有一个Snackbar提示要不要撤销。
+
+### Coordinatorlayout
+
+这个可以说是一个加强版的Framelayout，也是有Design Support库提供的，可以监听所有子控件的各种事件，然后做出合理的响应，比如避免控件遮挡的自动偏移操作等等。并且替换原来的FrameLayout也很简单，能够向下兼容，直接换掉关键字字段皆可以了。
+
+## 卡片式布局
+
+卡片式布局的意思就是，让页面中的元素看起来就像在卡片中一样，并且还有圆角和投影。
+
+### CardView
+
+由appcompat库提供的一个重要控件，实际上它也是一个FrameLayout，知识额外提供了圆角和阴影效果，看上去有立体的感觉。
+
+### AppBarLayout
+
+上一个CardView的RecyclerView会遮挡住ToolBar，为了不遮挡，还有另外一种解决办法——AppBarLayout，它是一个垂直方向上的LinearLayout，内部做了很多滚动事件的封装，也应用了一些Material Design的设计理念。
+
+具体使用其实就是两步：
+
+- 将ToolBar嵌套到AppBarLayout中。
+- 给RecyclerView指定一个布局行为app:layout_behavior=“@string/appbar_scrolling_view_behavior”
+
+这样就不会遮挡了。
+
+（PS:在TollBar中可以指定一个app:layout_scrollFlags=“scroll|enterAlways|snap”的字段属性，这样就可以实现上划时候自动隐藏ToolBar，在下划的时候又自动显示。）
+
+
+
+## 下拉刷新
+
+Google提供了现成的刷新控件，用就好了。
+
+SwipeRefreshLayout是用来实现这个效果的核心类，由support-v4库提供。只要把想要实现下拉刷新的控件放到SwipeRefreshLayout中就可以了。
+
+要实现这个控件的效果的第一步就是在想要下拉刷新的RecyclerView布局代码的部分的外层包裹一层SwipeRefreshLayout的布局代码。
+
+然后在Activity的内部持有一个SwipeRefreshLayout成员变量，然后通过findViewById（）方法和布局文件中的控件对应起来。
+
+再然后对这个SwipeRefreshLayout的成员变量调用setOnRefreshListener（）方法来处理下拉动作触发的回调事件（注意不要直接把耗时操作写在这个里面，可能会导致ANR的！）。
+
+## 可折叠式标题栏
+
+### CollapsingToolbarLayout
+
+这是一个可以极大扩充ToolBar的使用效果的布局，不过它无法直接存在，而是要作为AppBarLayout的直接子布局来使用。进一步地，AppBarLayout又必须作为CoordinatorLayout的子布局。
+
+这个布局实现的效果就是微信朋友圈的那种效果。
+
+### 充分利用状态栏的空间
+
+这个是要实现将系统的状态栏做成全透明的，和前面的CollapsingToolbarLayout实现效果融为一体。
+
+
+
+# 一些其他的技巧
+
+## 全局获取Context的技巧
+
+Android开发中几乎处处要用到context，在目前的学习中，似乎获取到context不算多难，因为activity类就是context对象。
+
+但是后面的开发会逐渐脱离activity类，如果这时候需要context，就有点不那么容易从activity获取context了。
+
+Android提供了一个类——Application类，每当程序启动的时候，系统就会自动将这个类初始化，所以我们可以定制一个自己的Application类，以便于管理程序内部的全局状态信息。比如全局Context。
+
+- 新建一个类继承自Application
+- 重写onCreate（）方法，并提供get方法。
+- 在AndroidManifest.xml中的application字段指定我们刚刚新建新建的自定义Application子类。
+- 之后需要使用的时候，就对新建的Application类调用get方法就可以了。
+- 如果和其他的Application类冲突的话，在自定义Application类的初始化方法里调用别的Application的初始化方法就可以了。**一个App只能配置一个Application**。
+
+## 使用Intent传递对象
+
+### Serializable方式
