@@ -2719,3 +2719,158 @@ Android提供了一个类——Application类，每当程序启动的时候，�
 ## 使用Intent传递对象
 
 ### Serializable方式
+序列化一个对象，将其转化为可存储或者可传输的状态。
+
+要实现序列化，只要让这个需要被传递的类去实现Serializable接口就可以了。然后还是按照常规的put方法传递这个对象，但是在接收的时候取值就不同了：
+
+```java
+Person person = (Person) getIntent().getSerializableExtra("Person_data");
+```
+
+### Parcelable方式
+
+这种方式比上一种要复杂一些，但是上一种要全部对象都序列化，这个是只对需要的
+
+首先还是要实现Parcelable的接口，必须重写两个方法：describeContents（）、writeToParcel（）。
+
+第一个方法返回0就可以了。第二个需要调用Parcel的writeXXX（）方法，将本类的成员变量一个个写入进去。
+
+然后还需必须提供一个CREATOR的常量，创建Parcelable.Creator的接口实现，指定泛型为Person。
+
+实现接口就需要重写两个方法：createFromParcle（）、newArray（）。
+
+在createFromParcle（）方法中需要确定格式：读取刚才写的成员变量字段，并创建一个本类对象返回。（调用read的顺序一定要和前面的write（）方法顺序一致）。
+
+在newArray（）方法的实现：只需要new 出一个Person数组就可以了。
+
+## 定制自己的日志工具
+
+前面的学习中，为方便调试，在代码中插入了很多日志，但是如果发布包的时候还带有这些日志信息的话，可能会导致信息泄露或者APP的效率下降。
+
+所以就需要有一个工具，在开发调试阶段有日志的打印信息，但是在发布的时候就把日志去掉。
+
+实现方法是自定义一个类，去实现一些Log的逻辑，用一个level变量去控制打印信息，默认设置为verbose，到时候如果需要发布，就修改这个level值，这样就会避免打印log。
+
+## 调试Android APP
+
+从IDE的运行选项届可以选择Debug按钮，然后在IDE里面就能看到各种信息，这个在后面的使用中会慢慢熟悉。
+
+## 创建定时任务
+
+定时任务的实现一般有两种方式：Java里的Timer、Android里面的Alarm机制。
+
+Timer有一个明显的短板，不太适合那些长期在后台运行的任务，容易被休眠策略影响。
+
+而Alarm有唤醒CPU的功能 ，保证大部分情况下，可以正常工作。
+
+### Alarm机制
+
+借助AlarmMangager类实现：
+
+```java
+AlarmManager manager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+long triggerAtTime = SystemClock.elapsedRealtime() + 10*1000;
+Intent intent = new Intent(this,LongRunningServices.class);
+PendingIntent pendingIntent = PendingIntent.getService(this,0,i,0);
+manager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,triggerAtTime,pendingIntent);
+```
+
+（上面的代码仅仅是一个演示，参数需要根据实际情况去写）
+
+因为时间的单位是毫秒，所以这里的秒数需要乘1000。然后在manger的set方法的三个参数分别传入：
+
+- 用于指定AlarmManger的工作方式。可选ELAPSED_REALTIME（触发时间从系统开机算起，不会唤醒CUP）、ELAPSED_REALTIME_WAKEUP（可以唤醒CPU）、RTC（触发时间从1970年1月1日0点开始算起，不唤醒）、RTC_WAKEUP（可以唤醒）。
+- SystemClock.elapseRealtime（）方法可以获取到系统开机到现在为止经过的毫秒数。（同样的，调用System.currentTimeMillis（）方法可以获取到从1970年1月1日0点至今所经历的毫秒数）
+- 获取到一个广播或者服务，这样在定时任务执行的时候，对应的服务的onStartCommand（）或者服务的onReceive（）方法就能得到执行。
+
+
+
+**在Android4.4开始，这个Alarm方式的触发开始变得不准确，不过这个不是bug，而是系统的省电优化，把附近几个时段的Alarm一块执行。如果仍然需要准确执行，可以用setExact来代替set方法。而且考虑到逻辑代码的顺序执行带来的时间误差，可以用多线程的方式保证逻辑代码能够在触发后及时地被执行。**
+
+
+
+### Doze模式
+
+Android一直在优化耗电控制，但是还是挡不住后台服务的滥用，所以在Android6.0加入了Doze模式，可以大幅度优化耗电量过大的问题。
+
+简单来说，就是系统在检测到手机没有充电，而且关闭了屏幕一段时间，就会进入Doze模式，系统这时候会对CPU、网络、Alarm等活动进行限制。
+
+系统也不会一直处于Doze状态，而是会隔段时间唤醒一次，但是间隔会越来越长。
+
+在Doze模式下：
+
+- 网络不能访问
+- 忽略唤醒CPU或者屏幕操作
+- 系统停止扫描WIFI
+- 停止同步服务
+- Alarm任务会在下次推出Doze模式的时候执行
+
+## 多窗口模式编程
+
+多窗口其实就是分屏，其实默认都是支持分屏的，只不过在分屏模式下，很多控件的尺寸会发生变化，所以这时候就要考虑在写布局的时候，多使用match_parent属性、RecyclerView等空控件，尽量避免出现屏幕尺寸变化过大带来的程序异常显示。
+
+### 多窗口模式下的生命周期
+
+其实App的生命周期并没有发生大的改变，只是：同时出现的两个APP，当用户和其中的一个交互的时候，另外一个虽然也是处于完全可见的状态，但是还是进入到了onPause（）的回调模式中。所以在一些视频播放的APP开发，就不要在onPause（）的方法中暂停掉播放。
+
+另外，APP进入多窗口模式的时候Activity会被重新创建。要是想改变这种默认的机制，可以在AndroidManifest.xml中对Activity的配置加入configChanges字段进行配置。这样一来，屏幕发生变化的事件会回调Activity的onConfigurationChanged（）方法中，可以根据具体情况去重写这个方法。
+
+### 禁用多窗口
+
+有的时候我们不希望APP在多窗口状态下运行，就可以在AndroidManifest.xml文件中配置application或者Activity的resizeableActivity字段为false，表示不支持。
+
+上述方法只在targetSdkVersion24以及更高的版本中生效，在低版本的系统中，会提示可能不能正常工作，但是还是会进入多窗口模式。不过，在低版本的规定中，如果不允许横竖屏切换就不能进入多窗口模式。所以低版本的设置可以在AndroidManifest.xml中声明screenOrientation字段为portrait（只支持竖屏）或者landscape（只支持横屏）就可以了。
+
+## Lambda表达式
+
+这个是java8新引入的特色功能。而且，这个功能最低支持到Android2.3呢。而其他的stream API等却只能支持7.0之上的系统版本，兼容性就很不好，所以项目的开发中能够使用的也就是这个Lambda表达式了。
+
+来一个具体的使用场景感受一下
+
+```java
+button.setOnClickListener(v -> {
+	//do something 
+});
+```
+
+而原来的写法是：
+
+```java
+button.setOnClickListener(new View.OnClickListener() {
+	@Override
+	public void onClick(View view) {
+		//do something
+	}
+});
+```
+
+只要是只有一个待实现的方法的接口，都可以使用Lambda表达式去写：
+
+```java
+Runnable runnable = new Runnable(){
+    @Override
+    public void run(){
+        //do something 
+    }
+};
+
+//Lambda:
+Runnable runnable = () ->{
+    //do something 
+}
+```
+
+
+
+# 总结
+
+啊… …
+
+终于告一段落了，这本《第一行代码》我本来是打算尽快过一遍的，但是不断的学习中，发现还是有很多地方和iOS有很大的不同，当然也有很多联系，但是在这个过程中，我喜欢一边学习Android的设计，一边和iOS开发中的一些设计对应起来，所以进度慢了很多。
+
+而且其实有一部分的内容没有涉及到，比如多媒体的部分和定位的部分。这一块我打算后面如果有时间的话，会补上这部分的内容，因为这些其实偏向于模块，不会影响到正常的逻辑开发等等。
+
+不过好的一点是，现在在看完这本书，能够上手去做一些简单的事情——比如创建项目，跟着示例去完成一些功能和效果等等。还有一个重要的收获就是，慢慢熟悉了Android的开发环境和开发思维，虽然目前接触到的开发的知识还很少，也还没有真正地开始写项目，不可避免地手生。但是在能够上手之后，就是快速积累实际经验的时候，希望这部分的学习能对之后的工作和学习有所增益，就算没有增益也没啥关系，学的越多，眼界就越开阔。
+
+总而言之，过了一遍课本，积累了一点点零散的开发知识，后面就是去上手写一个简单的APP，然后在不断的踩坑中进步。加油呀自己~~~
+
