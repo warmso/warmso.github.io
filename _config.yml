@@ -73,7 +73,8 @@ pagination_dir: page
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: material
+## theme: material
+theme: maupassant
 
 search:
   path: search.xml
@@ -85,3 +86,9 @@ deploy:
   type: git
   repo: git@github.com:warmso/warmso.github.io.git
   branch: master
+
+# hexo-admin authentification
+admin:
+  username: warmso
+  password_hash: $2a$10$veAhI3ZYpCoOBIm4SgZSne492bU.XcXq193YMfautWXMP7wVQQJ9O
+  secret: yexudemimi521**
