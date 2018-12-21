@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>初识SVN | Leo Chang</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/8.0.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">初识SVN</h1><a id="logo" href="/.">Leo Chang</a><p class="description">不定期更新的个人小站</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">初识SVN</h1><div class="post-meta">Jul 18, 2018<script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span><span class="post-time"><span class="post-meta-item-text"> | </span><span class="post-meta-item-icon"><i class="fa fa-keyboard-o"></i><span class="post-count"> 734</span><span class="post-meta-item-text"> 字</span></span></span><span class="post-time"> | <span class="post-meta-item-icon"><i class="fa fa-hourglass-half"></i><span class="post-count"> 2</span><span class="post-meta-item-text"> 分钟</span></span></span></div><a class="disqus-comment-count" data-disqus-identifier="2018/07/18/初识SVN/" href="/2018/07/18/初识SVN/#disqus_thread"></a><div class="post-content"><p>之前使用的一直是git，以至于一直以为git是绝大部分开发者的选择，直到后来知道了也会有不少人选择用SVN去做版本控制。于是我就学习了一下SVN，去了解一下这个SVN和git有什么异同。<br><a id="more"></a></p>
+<h1 id="SVN是什么"><a href="#SVN是什么" class="headerlink" title="SVN是什么"></a>SVN是什么</h1><p>Apache Subversion 是SVN的全称。在这之前还有一个传统的版本管理工具是CVS，这个工具并没有分支的机制，现在已经被SVN全面超越了（看网上的资料大概是这个样子的，但是我自己实际还没有使用CVS，以后会补上相关的对比的）。</p>
+<p>比起git，SVN更像是一个文件管理器，不过它会跟踪整个文件夹内容的修改，粒度是行，该有的分支管理、合并分支、版本控制样样都有。最大的不同是：git是一个分布式的版本控制工具，这就意味着在每一个终端上，它都有着完整的仓库，有着完整的版本控制功能。而SVN是一个中心化的版本控制器，中心化意味着需要有一个服务器来做功能的支持。这就意味着，一旦SVN服务器挂了，那整个项目的SVN使用都会受到影响。</p>
+<p>还有一个不同的地方在于，即使服务器上面也是看不到源代码的，所有的内容都是以一种特别的方式</p>
+<h1 id="SVN服务器"><a href="#SVN服务器" class="headerlink" title="SVN服务器"></a>SVN服务器</h1><p>因为SVN是中心化的，那就必须先要配置一个服务器，不然是无法使用SVN的，也没有办法学习。</p>
+<h2 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h2><p>首先需要手动新建一个目录，作为所有版本库的存储位置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mkdir all_SVN_repo</span><br></pre></td></tr></table></figure>
+<p>因为一个服务器是可以提供服务给很多个版本库的，所以这里起名字就明确为all。</p>
+<p>切换到这个目录下，然后用命令创建一个版本库：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">svnadmin create ./repo_1</span><br></pre></td></tr></table></figure></p>
+<p>这时候会发现在all_SVN_repo的文件夹下出现了一个刚新建的目录：repo_1</p>
+<p>可以先启动这个svn服务器试试(先cd到all_SVN_repo目录下)：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">svnserve -d -r ./repo_1</span><br></pre></td></tr></table></figure></p>
+<p>当然了，本篇所有的相对路径都可以换成绝对路径啦。<br>这样就可以启动这个svn服务器了！<br>这里的参数-r是单目录的启动方式。因为目前只创建了一个库。当然用多库方式启动也是可以的。</p>
+<p>可选参数有–listen-port xxxx，表示此服务的端口是xxxx，如果不指定这个参数的话，默认会开启3690这个端口。这个端口在后面会用到，所以这里需要记好。</p>
+<p>开启服务之后并不会占用终端的输入状态，所以这个命令一敲回车就好了，如果没有报错信息的话，它就已经在运行了。</p>
+<p>（未完待续… …）</p>
+</div><iframe src="/donate/?AliPayQR=/img/AliPayQR.png&amp;WeChatQR=/img/WeChatQR.png&amp;GitHub=null&amp;BTCQR=null&amp;BTCKEY=null&amp;PayPal=null" style="overflow-x:hidden; overflow-y:hidden; border:0xp none #fff; min-height:240px; width:100%;" frameborder="0" scrolling="no"></iframe><div><ul class="post-copyright"><li class="post-copyright-author"><strong>本文作者：</strong>Leo Chang</li><li class="post-copyright-link"><strong>本文链接：</strong><a href="/2018/07/18/初识SVN/">http://github.com/warmso.io/2018/07/18/初识SVN/</a></li><li class="post-copyright-license"><strong>版权声明：</strong>本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-sa/3.0/cn/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0 CN</a> 许可协议。转载请注明出处！</li></ul></div><br><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a class="article-share-link" data-url="http://github.com/warmso.io/2018/07/18/初识SVN/" data-id="cjpy9x55b000036fe1h8b0b2f" data-qrcode="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACJ0lEQVR42u3ay07DMBAF0P7/TxeJLSK9d5wiap+sKto4PlkMnsfjEV/P7+vn59++/fmb62+v17/twsDA+FjG8/JKtp6sOXtNyd4wMDDOYcyCbH5vDkuCLwYGBkZy4MuPd3kwxcDAwLg34Obpa3G8w8DAwLhkJEns9SZmm5s9FwMD4zTGSmPg3Z//qL+BgYHxjxnP0dU+uF2z3g8GBsbWjORItx73rgt2+VjGix1iYGBsypgVyNqGwUphLjqwYmBgHMnIhy3asYz2uBk1BjAwMI5htIFytpX83uLwioGBsTWj/WnStmzLc7M1o34sBgbGFowkwNUF+lEoXyreYWBgHMNI0tQksLYbbev8GBgYGNc3rxTj2hdRpLsYGBjHMGatgnxgYqUN8GI1DAyMrRltezIPoPkY2V1FOgwMjF0Z7SOTw1ybprbJc5ENY2BgbMFYCbjrJf525AIDAwPjfQNe7WtKBi8wMDDOZORL5IX+lfJc3ebEwMA4gNGW2JaK+EG5LR9Bw8DAOJORh8j8dSTt0llTEwMD4wRG3mJsA3QbWGfFQQwMjL0ZKweyWSk/GdGoy38YGBhbM+5qc660Qttgfdv/EAwMjI9itAMQSeBrG5NtS7We6cDAwNiCkSex+UaTv8yOlb+mshgYGBijhuUs+Ry2MDEwMI5nrI9Q5G2GOkBjYGAcwEiCZt7ITNZpE93bcnEMDIwPZNzbGMiLaO1LaV8EBgbGFowvcqKJh63NpM8AAAAASUVORK5CYII=">分享</a><div class="tags"></div><div class="post-nav"><a class="next" href="/2018/07/18/Android-从0开始的学习之路（下）/">《Android第一行代码》读书笔记（下）</a></div><div id="disqus_thread"><div class="btn_click_load"><button class="disqus_click_btn">阅读评论（请确保 Disqus 可以正常加载）</button></div><script type="text/javascript">var disqus_config = function () {
+    this.page.url = 'http://github.com/warmso.io/2018/07/18/初识SVN/';
+    this.page.identifier = '2018/07/18/初识SVN/';
+    this.page.title = '初识SVN';
+  };</script><script type="text/javascript" id="disqus-lazy-load-script">$.ajax({
+url: 'https://disqus.com/next/config.json',
+timeout: 2500,
+type: 'GET',
+success: function(){
+  var d = document;
+  var s = d.createElement('script');
+  s.src = '//[object Object].disqus.com/embed.js';
+  s.setAttribute('data-timestamp', + new Date());
+  (d.head || d.body).appendChild(s);
+  $('.disqus_click_btn').css('display', 'none');
+},
+error: function() {
+  $('.disqus_click_btn').css('display', 'block');
+}
+});</script><script type="text/javascript" id="disqus-click-load">$('.btn_click_load').click(() => {  //click to load comments
+    (() => { // DON'T EDIT BELOW THIS LINE
+        var d = document;
+        var s = d.createElement('script');
+        s.src = '//[object Object].disqus.com/embed.js';
+        s.setAttribute('data-timestamp', + new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+    $('.disqus_click_btn').css('display','none');
+});</script><script type="text/javascript" id="disqus-count-script">$(function() {
+     var xhr = new XMLHttpRequest();
+     xhr.open('GET', '//disqus.com/next/config.json', true);
+     xhr.timeout = 2500;
+     xhr.onreadystatechange = function () {
+       if (xhr.readyState === 4 && xhr.status === 200) {
+         $('.post-meta .post-comments-count').show();
+         var s = document.createElement('script');
+         s.id = 'dsq-count-scr';
+         s.src = 'https://[object Object].disqus.com/count.js';
+         s.async = true;
+         (document.head || document.body).appendChild(s);
+       }
+     };
+     xhr.ontimeout = function () { xhr.abort(); };
+     xhr.send(null);
+   });
+</script></div><div id="container"></div><link rel="stylesheet" href="/css/default.css?v=0.0.0"><script src="/js/gitment.browser.js?v=0.0.0"></script><script>var gitment = new Gitment({
+  owner: 'warmso',
+  repo: 'warmso.github.io',
+  oauth: {
+    client_id: '96e3a1f7434f88790f2f',
+    client_secret: '5caaaf9c93a65e306d764de4006304dc807d9c40',
+  },
+})
+gitment.render('container')
+</script></div></div></div><div class="pure-u-1 pure-u-md-1-4"><div id="sidebar"><div class="widget"><div class="search-form"><input id="local-search-input" placeholder="Search" type="text" name="q" results="0"/><div id="local-search-result"></div></div></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Android/">Android</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/Android/客户端/">客户端</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/Android/客户端/读书笔记/">读书笔记</a></li></ul></li></ul></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/0基础/" style="font-size: 15px;">0基础</a> <a href="/tags/客户端/" style="font-size: 15px;">客户端</a> <a href="/tags/Android/" style="font-size: 15px;">Android</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2018/07/18/初识SVN/">初识SVN</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/18/Android-从0开始的学习之路（下）/">《Android第一行代码》读书笔记（下）</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/06/04/Android从0开始的菜鸡学习之路/">《Android第一行代码》读书笔记（上）</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-comment-o"> 最近评论</i></div><script type="text/javascript" src="//[object Object].disqus.com/recent_comments_widget.js?num_items=5&amp;hide_avatars=1&amp;avatar_size=32&amp;excerpt_length=20&amp;hide_mods=1"></script></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2018 <a href="/." rel="nofollow">Leo Chang.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.css"><script type="text/javascript" src="/js/search.js?v=0.0.0"></script><script>var search_path = 'search.xml';
+if (search_path.length == 0) {
+   search_path = 'search.xml';
+}
+var path = '/' + search_path;
+searchFunc(path, 'local-search-input', 'local-search-result');
+</script><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
