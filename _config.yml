@@ -3,11 +3,11 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: Howard&iFan
-subtitle: our blog
+title: Leo Chang
+subtitle: 不定期更新的个人小站
 description: 
 keywords: blog
-author: howard
+author: Leo Chang
 language: zh-CN
 timezone: 
 
@@ -87,8 +87,3 @@ deploy:
   repo: git@github.com:warmso/warmso.github.io.git
   branch: master
 
-# hexo-admin authentification
-admin:
-  username: warmso
-  password_hash: $2a$10$veAhI3ZYpCoOBIm4SgZSne492bU.XcXq193YMfautWXMP7wVQQJ9O
-  secret: yexudemimi521**
